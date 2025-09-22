@@ -1,0 +1,76 @@
+---
+title: "Labwork №1. Creating base of typical Data Science project"
+author: "&copy; [Andrew Zaykin](https://www.linkedin.com/in/zaykinandrew/), `r format(Sys.time(), '%Y')`"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: true
+    highlight: tango
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    code-copy: true
+fontsize: 12pt
+lang: ukr
+header-includes:
+ \usepackage[T2A]{fontenc}
+ \usepackage[utf8]{inputenc}
+ \usepackage[russian]{babel}
+editor_options: 
+  chunk_output_type: console
+bibliography: source/references_lab.bib
+---
+
+## Introduction
+
+In this labwork we will learn:
+
+* how to import data and visualize it in RMarkdown using ggplot2 library
+* how to create interactive documents using RMarkdown
+* how to use Latex for formulas in RMarkdown
+* how to create bibliography using BibTeX
+
+## Task completion
+
+1. Import point coordinates using rio library [@rio]
+
+```{r}
+library(rio)
+coordinates_data <- import("source/data/data.csv")
+```
+
+2. Create graph of function by coordinates using ggplot2 library [@ggplot2]
+
+```{r}
+library(ggplot2)
+
+ggplot(data = coordinates_data, aes(x = x, y = y)) +
+  geom_line(color = "blue", linewidth = 1) +
+  geom_point(color = "red", size = 2) +
+  theme_dark() +
+  theme(plot.title = element_text(size = 10)) +
+  labs(title = "Graph of function by coordinates",
+       x = "X",
+       y = "Y")
+```
+
+3. But this code is not optimal. We can use stream operator `%>%` to make it more readable.
+
+```{r}
+library(magrittr)
+
+coordinates_data %>%
+  ggplot(aes(x = x, y = y)) +
+  geom_line(color = "green", linewidth = 1) +
+  geom_point(color = "red", size = 2) +
+  theme_dark() +
+  theme(plot.title = element_text(size = 10)) +
+  labs(title = "Graph of function by coordinates using %>% operator",
+       x = "X",
+       y = "Y")
+```
+
+4. The formula of this function is $y = 2 + 3 * x + 1.57 * x^2$.
+
+## References

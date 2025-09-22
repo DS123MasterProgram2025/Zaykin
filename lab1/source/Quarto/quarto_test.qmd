@@ -1,0 +1,85 @@
+---
+title: "quarto_test"
+description:
+  Документ зроблено в [Quarto](https://quarto.org/)
+author: "&copy; [Valeriy Sydorenko](https://www.linkedin.com/in/valeriy-sydorenko-6782279a/), 2023"
+date: "`r Sys.Date()`"
+lang: ukr
+format: 
+  html:
+    code-fold: true
+editor: visual
+---
+
+## Quarto!
+
+Детальне керівництво [Guide](https://quarto.org/doc/guide/)
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+### Виносні блоки
+
+Див. детально [тут Callout Blocks](https://quarto.org/docs/authoring/callouts.html)
+
+::: callout-note
+## Примітка
+
+Цей елемент буде використовуватися для заміток
+:::
+
+::: callout-tip
+## Порада
+
+This is an example of a callout with a title.
+:::
+
+::: callout-important
+## Важливо!
+
+Note that there are five types of callouts, including: `note`, `warning`, `important`, `tip`, and `caution`.
+
+This is an example of a callout with a title.
+:::
+
+::: {.callout-caution appearance="simple"}
+## Важливо
+
+Цей елемент буде використовуватися для попереджень
+:::
+
+::: {.callout-caution collapse="true"}
+## Важливо
+
+А це варіант попередження, що стисткається
+
+This is an example of a 'folded' caution callout that can be expanded by the user. You can use `collapse="true"` to collapse it by default or `collapse="false"` to make a collapsible callout that is expanded by default.
+:::
+
+::: {.callout-warning icon="false"}
+### Попередження
+
+Без іконки
+:::
+
+::: callout-warning
+### Попередження
+
+З іконкою
+:::
