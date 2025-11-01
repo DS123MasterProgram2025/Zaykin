@@ -1,0 +1,13 @@
+```{r}
+packages <- c("rio", "magrittr", "ggplot2", "dplyr", "corrplot", "funModeling", "knitr", "factoextra", "FactoMineR")
+lapply(packages, library, character.only = TRUE, quietly = TRUE)
+
+women <- import("data/hw.xlsx")
+
+plot(women$`Зріст, см`, women$`Вага, кг`,
+     main = "Лінія регресії",
+     xlab = "Зріст, см", 
+     ylab = "Вага, кг",
+     )
+abline(lm(women$`Вага, кг` ~ women$`Зріст, см`), col = "red")
+```
