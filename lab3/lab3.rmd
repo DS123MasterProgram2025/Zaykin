@@ -1,13 +1,86 @@
-```{r}
+---
+title: "_Лабораторна робота №3._ Побудова моделі парної регресії"
+author: "[Зайкін А. В.](https://www.linkedin.com/in/zaykinandrew/), `r format(Sys.time(), '%Y')`"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: true
+    highlight: tango
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    code-copy: true
+fontsize: 12pt
+lang: ukr
+header-includes:
+ \usepackage[T2A]{fontenc}
+ \usepackage[utf8]{inputenc}
+ \usepackage[russian]{babel}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r warning=FALSE, message=FALSE, include=FALSE, paged.print=FALSE}
 packages <- c("rio", "magrittr", "ggplot2", "dplyr", "corrplot", "funModeling", "knitr", "factoextra", "FactoMineR")
 lapply(packages, library, character.only = TRUE, quietly = TRUE)
+```
 
-women <- import("data/hw.xlsx")
+```{r warning=FALSE}
+people <- import("data/hw.xlsx")
+
+women <- people %>%
+  filter(`Стать` == "Woman")
 
 plot(women$`Зріст, см`, women$`Вага, кг`,
      main = "Лінія регресії",
      xlab = "Зріст, см", 
      ylab = "Вага, кг",
      )
-abline(lm(women$`Вага, кг` ~ women$`Зріст, см`), col = "red")
+lm = lm(women$`Вага, кг` ~ women$`Зріст, см`)
+abline(lm, col = "red")
 ```
+
+Summary of the model:
+
+```{r warning=FALSE, message=FALSE}
+summary(lm)
+```
+
+Bad model.
+
+```{r warning=FALSE, message=FALSE}
+plot(lm)
+```
+
+Filter outsiders and make new model:
+
+```{r warning=FALSE, message=FALSE}
+women <- women %>%
+  filter(!row_number() %in% c(20, 56))
+
+lm = lm(women$`Вага, кг` ~ women$`Зріст, см`)
+summary(lm)
+```
+
+New model:
+
+```{r warning=FALSE, message=FALSE}
+lm = lm(women$`Зріст, см` ~ women$`Вага, кг` - 1)
+summary(lm)
+```
+
+Predicting weight:
+
+```{r warning=FALSE, message=FALSE}
+# weightNumber <- data.frame(`Зріст, см`=c(160, 170, 180))
+# pre <- predict(lm, weightNumber, interval = "confidence")
+# knitr::kable(cbind(weightNumber, pre), caption = "Predicted height")
+```
+
+
+
+
+
+
+
