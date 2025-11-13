@@ -52,7 +52,7 @@ if (!require(devtools)) {
 devtools::install_github("husson/FactoMineR")
 devtools::install_github("kassambara/factoextra")
 
-packages <- c("rio", "magrittr", "ggplot2", "dplyr", "corrplot", "funModeling", "knitr", "factoextra", "FactoMineR")
+packages <- c("rio", "magrittr", "ggplot2", "dplyr", "corrplot", "funModeling", "knitr", "factoextra", "FactoMineR", "writexl")
 lapply(packages, library, character.only = TRUE, quietly = TRUE)
 people <- import("data/hw.xlsx")
 ```
@@ -158,6 +158,17 @@ fviz_pca_biplot(peoplePCA,
              palette = c("#00AFBB", "#E7B800"),
              addEllipses = TRUE # Concentration ellipses
              )
+```
+
+Збережемо змiннi спроектованi на першу компоненту та стать у таблицю для використання в інших лабораторних роботах.
+
+```{r}
+people_pca <- data.frame(
+  Dim1 = peoplePCA$ind$coord[,1],
+  `Стать` = people$`Стать`
+)
+
+write_xlsx(people_pca, path = "data/people_pca.xlsx")
 ```
 
 ### Висновки

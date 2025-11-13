@@ -1,0 +1,149 @@
+---
+title: "_Лабораторна робота №4._ Побудова моделі класифікації"
+author: "[Зайкін А. В.](https://www.linkedin.com/in/zaykinandrew/), `r format(Sys.time(), '%Y')`"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: true
+    highlight: tango
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    code-copy: true
+fontsize: 12pt
+lang: ukr
+header-includes:
+ \usepackage[T2A]{fontenc}
+ \usepackage[utf8]{inputenc}
+ \usepackage[russian]{babel}
+editor_options: 
+  chunk_output_type: console
+---
+
+# Короткі теоретичні відомості
+
+### Що таке задача класифікації?
+Задача класифікації (англ. Classification) - це задача статистичного моделювання, яка полягає в тому, щоб класифікувати дискретну величину (наприклад, стать) на основі значень неперервних величин (наприклад, зросту та ваги). Задача класифікації є однією з найважливіших задач статистичного моделювання та використовується в багатьох областях, таких як медицина, фінанси, ринки капіталів та іншk.
+
+# Постановка задачі
+
+### Мета роботи:
+
+1. Засвоєння принципів, знайомство з інструментами та набуття навичок побудови моделі класифікації засобами мови програмування R та пакетів `caret`.
+2. Побудова моделeq класифікації залежностi статі від зросту та ваги засобами мови програмування R та функцiй `train()`, `predict()`, `confusionMatrix()` використовуючi рiзнi моделi класифікації та рiзнi змiннi.
+3. Експорт та iмпорт моделi класифікації у базу даних за допомогою пакетів `DBI`, `simplextree`, `RSQLite`.
+
+# Виконання завдання
+
+### Побудова моделeй класифікації
+
+Побудуємо моделi класифікації, яка класифікує стать залежно від зросту та ваги на основi моделей LDA (лінійний дискримінантний аналіз) та RF (випадковий ліс).
+
+```{r warning=FALSE, message=FALSE, include=FALSE, paged.print=FALSE}
+packages <- c("rio", "magrittr", "ggplot2", "dplyr", "corrplot", "funModeling", "knitr", "factoextra", "FactoMineR", "randomForest", "caret", "DBI", "RSQLite")
+lapply(packages, library, character.only = TRUE, quietly = TRUE)
+```
+
+```{r warning=FALSE}
+people <- import("data/hw.xlsx")
+
+set.seed(1234)
+
+trainIndex <- createDataPartition(1:nrow(people), times = 1, p = .8)
+
+trainSet  <- people[trainIndex$Resample1,]
+testSet   <- people[-trainIndex$Resample1,]
+
+fitCtrl <- trainControl(method = "repeatedcv",
+                        number = 10,
+                        repeats = 5
+)
+
+model1 <- train(trainSet[,-3], as.factor(trainSet[,3]), trControl = fitCtrl)
+
+prediction <- predict(model1, newdata = testSet[,-3])
+confusionMatrix(prediction, as.factor(testSet[,3]))
+
+model2 <- train(trainSet[,-3], as.factor(trainSet[,3]), method = "lda", trControl = fitCtrl)
+prediction <- predict(model2, newdata = testSet[,-3])
+confusionMatrix(prediction, as.factor(testSet[,3]))
+```
+
+Лiнiйний дискримінантний аналіз краще класифікує стать залежно від зросту та ваги, ніж випадковий ліс. Це можна побачити по значенню точності та Kappa.
+
+Тепер спробуємо класифікувати стать залежно вiд першої головної компоненти, яка пояснює 78.2% дисперсії даних. Для цього ми використаємо таблицю з головною компонентою та статтю, яку ми отримали в попередній лабораторній роботі.
+
+```{r warning=FALSE}
+people_dim <- import("data/people_pca.xlsx")
+
+set.seed(1234)
+
+trainIndex <- createDataPartition(1:nrow(people_dim), times = 1, p = .8)
+
+trainSet  <- people_dim[trainIndex$Resample1,]
+testSet   <- people_dim[-trainIndex$Resample1,]
+
+fitCtrl <- trainControl(method = "repeatedcv",
+                        number = 10,
+                        repeats = 5
+)
+
+model3 <- train(trainSet[,1, drop=FALSE], as.factor(trainSet[,2]), trControl = fitCtrl)
+
+prediction <- predict(model3, newdata = testSet[,1, drop=FALSE])
+confusionMatrix(prediction, as.factor(testSet[,2]))
+
+model4 <- train(trainSet[,1, drop=FALSE], as.factor(trainSet[,2]), method = "lda", trControl = fitCtrl)
+prediction <- predict(model4, newdata = testSet[,1, drop=FALSE])
+confusionMatrix(prediction, as.factor(testSet[,2]))
+```
+
+Точнicть класифікації зменшилась, але рiзниця мiж точнicтю LDA та RF залишилась такою ж, як і в попередньому випадку. Природа даних така, що класифікація залежно від першої головної компоненти не є такою вдалою, як класифікація залежно від зросту та ваги.
+
+### Експорт та iмпорт моделi класифікації у базу даних
+
+Спочатку серiалізуємо модель за допомогою функції `serialize()` для того щоб зберегти її в базу даних.
+
+```{r warning=FALSE}
+model3_serialized <- rawToChar(serialize(model3$finalModel, NULL, TRUE))
+```
+
+Тепер в такому вигляді модель можна зберегти.
+
+```{r warning=FALSE}
+db <- dbConnect(SQLite(), dbname = "data/models.sqlite")
+
+dbGetQuery(db, "DROP TABLE IF EXISTS models")
+
+dbGetQuery(db, 'CREATE TABLE IF NOT EXISTS models
+           (id INT PRIMARY KEY,
+           model VARCHAR(2000))'
+)
+
+df <- data.frame(id = 1, mdl = model3_serialized)
+
+dbGetPreparedQuery(db, 'INSERT INTO models (model) values (:mdl)',
+                   bind.data = df)
+dbDisconnect(db)
+```
+
+Iмпортуємо модель та застосуємо її для класифікації тестовоi вибірки, щоб порiвняти оригiнальну модель та iмпортовану модель.
+
+```{r warning=FALSE}
+db <- dbConnect(SQLite(), dbname="data/models.sqlite")
+df2 <- dbGetQuery(db, "SELECT * FROM models")
+
+model3_unserialized <- unserialize(charToRaw(df2$model))
+
+prediction <- predict(model3_unserialized, newdata = testSet[,1, drop=FALSE])
+confusionMatrix(prediction, as.factor(testSet[,2]))
+```
+
+Як бачимо, статистичні характеристики iмпортованої моделі та оригiнальної моделі однаковi. Це означає, що модель була iмпортована та збережена в базу даних вірно.
+
+### Висновки
+
+1. Данi мають бiльш менш нормальний росподiл, тому лiнiйний дискримінантний аналіз краще класифікує стать залежно від зросту та ваги, ніж випадковий ліс, тому що він використовує лінійні рівняння для класифікації.
+2. Класифікація залежно від першої головної компоненти гiрше, ніж класифікація залежно від зросту та ваги, бо 78.2% дисперсії даних не є достатньою для точного класифікування статі.
+3. Експорт та iмпорт моделi класифікації у базу даних за допомогою пакетів `DBI`, `RSQLite` дозволяє зберегти модель, щоб не втрачати навчену модель.
