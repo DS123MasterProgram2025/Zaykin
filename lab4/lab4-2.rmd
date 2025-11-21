@@ -1,0 +1,146 @@
+---
+title: "_Лабораторна робота №4._ Побудова моделі класифікації"
+author: "[Зайкін А. В.](https://www.linkedin.com/in/zaykinandrew/), `r format(Sys.time(), '%Y')`"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: true
+    highlight: tango
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    code-copy: true
+fontsize: 12pt
+lang: ukr
+header-includes:
+ \usepackage[T2A]{fontenc}
+ \usepackage[utf8]{inputenc}
+ \usepackage[russian]{babel}
+editor_options: 
+  chunk_output_type: console
+---
+
+# Короткі теоретичні відомості
+
+### Що таке задача класифікації?
+Задача класифікації (англ. Classification) - це задача статистичного моделювання, яка полягає в тому, щоб класифікувати дискретну величину (наприклад, стать) на основі значень неперервних величин (наприклад, зросту та ваги). Задача класифікації є однією з найважливіших задач статистичного моделювання та використовується в багатьох областях, таких як медицина, фінанси, ринки капіталів та іншk.
+
+# Постановка задачі
+
+### Мета роботи:
+
+1. Засвоєння принципів, знайомство з інструментами та набуття навичок побудови моделі класифікації засобами мови програмування R та пакетів `tidymodels`.
+2. Побудова моделeq класифікації залежностi статі від зросту та ваги засобами мови програмування R та функцiй `train()`, `predict()`, `confusionMatrix()` використовуючi рiзнi моделi класифікації та рiзнi змiннi.
+3. Експорт та iмпорт моделi класифікації у базу даних за допомогою пакетів `DBI`, `simplextree`, `RSQLite`.
+
+# Виконання завдання
+
+### Побудова моделeй класифікації
+
+Побудуємо модель класифікації залежності статі від зросту та ваги засобами мови програмування R та пакетів `tidymodels`.
+
+```{r warning=FALSE, message=FALSE, include=FALSE, paged.print=FALSE}
+packages <- c("rio", "magrittr", "ggplot2", "dplyr", "corrplot", "funModeling", "knitr", "factoextra", "FactoMineR", "randomForest", "DBI", "RSQLite", "tidymodels", "discrim")
+lapply(packages, library, character.only = TRUE, quietly = TRUE)
+```
+
+```{r warning=FALSE}
+people <- import("data/hw.xlsx")
+
+colnames(people) <- c("Height", "Weight", "Gender")
+people$Gender <- as.factor(people$Gender)
+
+set.seed(1234)
+
+data_split <- initial_split(people, prop = 0.8, strata = Gender)
+train_set <- training(data_split)
+test_set  <- testing(data_split)
+
+cv_folds <- vfold_cv(train_set, v = 10, repeats = 5, strata = Gender)
+
+rf_spec <- rand_forest() %>%
+  set_engine("randomForest") %>%
+  set_mode("classification")
+
+lda_spec <- discrim_linear() %>%
+  set_engine("MASS") %>%
+  set_mode("classification")
+
+rf_wf <- workflow() %>%
+  add_model(rf_spec) %>%
+  add_formula(Gender ~ Height + Weight)
+
+lda_wf <- workflow() %>%
+  add_model(lda_spec) %>%
+  add_formula(Gender ~ Height + Weight)
+
+rf_res <- fit_resamples(
+  rf_wf,
+  cv_folds,
+  metrics = metric_set(accuracy, kap)
+)
+
+lda_res <- fit_resamples(
+  lda_wf,
+  cv_folds,
+  metrics = metric_set(accuracy, kap)
+)
+
+print("Random Forest Metrics:")
+collect_metrics(rf_res)
+
+print("LDA Metrics:")
+collect_metrics(lda_res)
+
+final_rf_fit <- last_fit(rf_wf, data_split)
+collect_predictions(final_rf_fit) %>%
+  conf_mat(truth = Gender, estimate = .pred_class)
+
+final_lda_fit <- last_fit(lda_wf, data_split)
+collect_predictions(final_lda_fit) %>%
+  conf_mat(truth = Gender, estimate = .pred_class)
+```
+
+Лiнiйний дискримінантний аналіз показує результати, які можна порівняти з Random Forest (або кращі, залежно від метрик).
+
+Тепер спробуємо класифікувати стать залежно вiд першої головної компоненти, яка пояснює 78.2% дисперсії даних.
+
+```{r warning=FALSE}
+people_dim <- import("data/people_pca.xlsx")
+
+# Задамо імена для зручності. Припускаємо: 1 стовпчик - PC1, 2 - Стать
+colnames(people_dim) <- c("PC1", "Gender")
+people_dim$Gender <- as.factor(people_dim$Gender)
+
+set.seed(1234)
+
+# Розбиття для PCA даних
+pca_split <- initial_split(people_dim, prop = 0.8, strata = Gender)
+pca_train <- training(pca_split)
+pca_test  <- testing(pca_split)
+
+pca_folds <- vfold_cv(pca_train, v = 10, repeats = 5, strata = Gender)
+
+# Оновлення workflow для нових даних (змінюємо тільки формулу)
+rf_pca_wf <- workflow() %>%
+  add_model(rf_spec) %>%
+  add_formula(Gender ~ PC1)
+
+lda_pca_wf <- workflow() %>%
+  add_model(lda_spec) %>%
+  add_formula(Gender ~ PC1)
+
+# Фінальна перевірка (Fit & Predict)
+# Random Forest на PCA
+final_rf_pca <- last_fit(rf_pca_wf, pca_split)
+collect_predictions(final_rf_pca) %>%
+  conf_mat(truth = Gender, estimate = .pred_class)
+
+# LDA на PCA
+final_lda_pca <- last_fit(lda_pca_wf, pca_split)
+collect_predictions(final_lda_pca) %>%
+  conf_mat(truth = Gender, estimate = .pred_class)
+```
+
+Точнicть класифікації зменшилась. Природа даних така, що класифікація залежно від першої головної компоненти не є такою вдалою, як класифікація залежно від зросту та ваги.
